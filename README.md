@@ -1,20 +1,20 @@
-# Terraform Module for AWS RDS with PostgreSQL
+# Terraform Module for AWS Aurora with PostgreSQL
 
-Create a RDS instance with PostgreSQL engine and configure it to create roles & databases.
+Create a Aurora instance with PostgreSQL engine and configure it to create roles & databases.
 
 ## Usecases
 
-### Adding a database to existing RDS instance
+### Adding a database to existing Aurora instance
 
-As an example we will add `ehr-integration` database to shared RDS instance on staging.
+As an example we will add `ehr-integration` database to shared Aurora instance on staging.
 
 1. It is required to have access to one of AWS accounts as for example `KlaraProductDeveloperAccess` role. This account is used currently used for testing applications in EKS.
 
 2. Verify that access to `terraform/password-encryption` KMS key is present. This KMS key is used to encrypt password. As alternative SRE team can help to generate the password.
 
-3. In order to encrypt the password, execute [this](https://github.com/ModMedPD/klara-iac-scripts/blob/main/infra-scripts/encrypt_tool.sh) script i.e `encrypt_tool.sh`. The script can automatically generate a random string & encrypt it as well as perform encryption of the provided string.
+3. In order to encrypt the password, execute [this](##should be given ours###https://github.com/ModMedPD/klara-iac-scripts/blob/main/infra-scripts/encrypt_tool.sh) script i.e `encrypt_tool.sh`. The script can automatically generate a random string & encrypt it as well as perform encryption of the provided string.
 
-4. Add the generated password to `.tfvars` file in the repository `terraform-app-network` under `stg-network/eu-central-1/rds-postgresql-env1` along with role name that needs to be created. Note that we can perform the same action under `us-east-1` directory.
+4. Add the generated password to `.tfvars` file in the repository `terraform-app-network` under `stg-network/eu-central-1/Aurora-postgresql-env1` along with role name that needs to be created. Note that we can perform the same action under `us-east-1` directory.
 
    Sample:
 
@@ -48,11 +48,32 @@ As an example we will add `ehr-integration` database to shared RDS instance on s
 
 10. Once approval has been given, comment `atlantis apply` in the pull request to apply the planned changes.
 
-- New database will be created inside RDS instance
+- New database will be created inside Aurora instance
 
-- Secrets for this database will be created automatically in secret manager under `rds/instance_name/role_name/db_name` path
+- Secrets for this database will be created automatically in secret manager under `Aurora/instance_name/role_name/db_name` path
 
-11. To verify that DB is created, connect to it using credentials from secret manager. Note that RDS is not accessible outside of VPC network. Therefore, it is required to have access to Client VPN(still under development) or some `pod` with `psql`.
+11. To verify that DB is created, connect to it using credentials from secret manager. Note that Aurora is not accessible outside of VPC network. Therefore, it is required to have access to Client VPN(still under development) or some `pod` with `psql`.
+
+12. Implement multi-AZ deployments for automatic failover and improved availability in case of instance or AZ failures.
+
+13. Database Creation:-
+- The module creates PostgreSQL databases defined in the databases variable.
+- Each database is configured with specified connection limits and encodings.
+
+14. Role and Privilege Management:-
+- The module allows you to create PostgreSQL roles and assign them specific privileges on databases, schemas, tables, and sequences.     - Privileges are applied through the postgresql_grant resources.
+
+15. PostgreSQL Extensions:-
+- It installs essential PostgreSQL extensions like pg_stat_statements for performance monitoring and pgaudit for auditing.
+- You can add more extensions by configuring the local.extensions variable.
+
+16. RBAC (Role-Based Access Control): The module ensures that roles only have the necessary privileges by using granular access control mechanisms at the database, schema, table, and sequence levels.
+
+17.  Public Access Revocation: Public roles are revoked from the template1 and postgres databases, as well as the public schema, enhancing security.
+
+18. Password Management: Passwords for roles are set explicitly and should be securely stored (e.g., using AWS Secrets Manager).
+
+
 
 ### Tip
 
@@ -90,11 +111,11 @@ Then connect to pod and use `psql` + credentials to check DB works, then delete 
 |------|--------|---------|
 | <a name="module_admin_credential_secret"></a> [admin\_credential\_secret](#module\_admin\_credential\_secret) | git::ssh://git@github.com/ModMedPD/terraform-aws-secret-manager | 1.1.2 |
 | <a name="module_kms"></a> [kms](#module\_kms) | git::ssh://git@github.com/ModMedPD/terraform-aws-kms | 1.0.5 |
-| <a name="module_postgres"></a> [postgres](#module\_postgres) | terraform-aws-modules/rds/aws | ~> 6.0 |
+| <a name="module_postgres"></a> [postgres](#module\_postgres) | terraform-aws-modules/Aurora/aws | ~> 6.0 |
 | <a name="module_postgres_configuration"></a> [postgres\_configuration](#module\_postgres\_configuration) | ./modules/postgresql-configuration | n/a |
 | <a name="module_postgres_security_group"></a> [postgres\_security\_group](#module\_postgres\_security\_group) | terraform-aws-modules/security-group/aws | ~> 5.0 |
 | <a name="module_role_credential_secret"></a> [role\_credential\_secret](#module\_role\_credential\_secret) | git::ssh://git@github.com/ModMedPD/terraform-aws-secret-manager | 1.1.2 |
-| <a name="module_transfer_rds_logs_to_s3"></a> [transfer\_rds\_logs\_to\_s3](#module\_transfer\_rds\_logs\_to\_s3) | terraform-aws-modules/lambda/aws | ~> 7.0 |
+| <a name="module_transfer_Aurora_logs_to_s3"></a> [transfer\_Aurora\_logs\_to\_s3](#module\_transfer\_Aurora\_logs\_to\_s3) | terraform-aws-modules/lambda/aws | ~> 7.0 |
 
 ## Resources
 
@@ -112,16 +133,16 @@ Then connect to pod and use `psql` + credentials to check DB works, then delete 
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_configuration_enabled"></a> [configuration\_enabled](#input\_configuration\_enabled) | Bool to decide if one wants to configure PostgreSQL RDS instance with DBs,roles,permissions | `bool` | `true` | no |
+| <a name="input_configuration_enabled"></a> [configuration\_enabled](#input\_configuration\_enabled) | Bool to decide if one wants to configure PostgreSQL Aurora instance with DBs,roles,permissions | `bool` | `true` | no |
 | <a name="input_databases"></a> [databases](#input\_databases) | Database names created inside PostgreSQL instance | `any` | n/a | yes |
-| <a name="input_enabled"></a> [enabled](#input\_enabled) | Bool to decide if RDS resources are created | `bool` | `true` | no |
+| <a name="input_enabled"></a> [enabled](#input\_enabled) | Bool to decide if Aurora resources are created | `bool` | `true` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name of PostgreSQL instance | `string` | n/a | yes |
 | <a name="input_roles"></a> [roles](#input\_roles) | Roles created inside of PostgreSQL instance | <pre>map(object({<br/>    password  = optional(string)<br/>    member_of = optional(list(string), [])<br/>  }))</pre> | `{}` | no |
-| <a name="input_settings"></a> [settings](#input\_settings) | Settings of PostgreSQL instance | <pre>object({<br/>    admin_password              = optional(string)<br/>    engine_version              = optional(string, "17.2")<br/>    instance_class              = optional(string, "db.t4g.micro")<br/>    multi_az                    = optional(bool, false)<br/>    vpc_name                    = optional(string) # VPC Name ex klara/stg - if not provided name is generated from tags $product/$environment<br/>    subnet_type                 = optional(string, "database")<br/>    storage_type                = optional(string, "gp3") # Storage type gp2,gp3,io1,io2 https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Storage.html#gp3-storage<br/>    iops                        = optional(number)        # Storage size lower than 400GB can't set iops; for io storage type minimum value is 1000<br/>    throughput                  = optional(number)        # Storage size lower than 400GB can't set throughput<br/>    allocated_storage           = optional(number, 20)    # Minimal size for GP3 is 20G<br/>    backup_window               = optional(string, "04:00-05:00")<br/>    backup_retention_days       = optional(number, 7) # Snapshot retention in days<br/>    maintenance_window          = optional(string, "Mon:07:00-Mon:09:00")<br/>    source_cidrs                = list(string)               # Allowed CIDR blocks - used in security group<br/>    source_security_group_names = optional(list(string), []) # Allowed Source Security Group Names; Used as filter to query Security Group ID<br/>    log_retention_days          = optional(number, 7)        # CloudWatch log retention in days<br/>    deletion_protection         = optional(bool, true)<br/>    parameters = optional(map(object({<br/>      value        = string<br/>      apply_method = optional(string, "immediate")<br/>    })))<br/>  })</pre> | n/a | yes |
+| <a name="input_settings"></a> [settings](#input\_settings) | Settings of PostgreSQL instance | <pre>object({<br/>    admin_password              = optional(string)<br/>    engine_version              = optional(string, "17.2")<br/>    instance_class              = optional(string, "db.t4g.micro")<br/>    multi_az                    = optional(bool, false)<br/>    vpc_name                    = optional(string) # VPC Name ex klara/stg - if not provided name is generated from tags $product/$environment<br/>    subnet_type                 = optional(string, "database")<br/>    storage_type                = optional(string, "gp3") # Storage type gp2,gp3,io1,io2 https://docs.aws.amazon.com/AmazonAurora/latest/UserGuide/CHAP_Storage.html#gp3-storage<br/>    iops                        = optional(number)        # Storage size lower than 400GB can't set iops; for io storage type minimum value is 1000<br/>    throughput                  = optional(number)        # Storage size lower than 400GB can't set throughput<br/>    allocated_storage           = optional(number, 20)    # Minimal size for GP3 is 20G<br/>    backup_window               = optional(string, "04:00-05:00")<br/>    backup_retention_days       = optional(number, 7) # Snapshot retention in days<br/>    maintenance_window          = optional(string, "Mon:07:00-Mon:09:00")<br/>    source_cidrs                = list(string)               # Allowed CIDR blocks - used in security group<br/>    source_security_group_names = optional(list(string), []) # Allowed Source Security Group Names; Used as filter to query Security Group ID<br/>    log_retention_days          = optional(number, 7)        # CloudWatch log retention in days<br/>    deletion_protection         = optional(bool, true)<br/>    parameters = optional(map(object({<br/>      value        = string<br/>      apply_method = optional(string, "immediate")<br/>    })))<br/>  })</pre> | n/a | yes |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| <a name="output_endpoint"></a> [endpoint](#output\_endpoint) | RDS PostreSQL instance ID |
+| <a name="output_endpoint"></a> [endpoint](#output\_endpoint) | Aurora PostreSQL instance ID |
 <!-- END_TF_DOCS -->
